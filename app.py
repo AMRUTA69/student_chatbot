@@ -5,9 +5,10 @@ A Streamlit app powered by Google Gemini (gemini-2.5-flash).
 Usage:
     streamlit run app.py
 
-Students enter their Google Gemini API key to activate the chatbot,
-then ask academic questions across any subject. Conversation history
-is maintained for the duration of the browser session.
+The Gemini API key is read from Streamlit secrets (GEMINI_API_KEY) when
+available, so it does not have to be typed every time. If no secret is
+set, the app asks the student to enter their own key. Conversation
+history is maintained for the duration of the browser session.
 """
 
 import streamlit as st
@@ -30,13 +31,25 @@ TOPIC_SUGGESTIONS = [
 
 
 # ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+
+def get_default_api_key():
+    """Read the key from Streamlit secrets if available."""
+    try:
+        return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Session State
 # ---------------------------------------------------------------------------
 
 def init_session_state():
     """Initialise required session_state keys on first run."""
     if "api_key" not in st.session_state:
-        st.session_state.api_key = None
+        st.session_state.api_key = get_default_api_key()
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "prefill" not in st.session_state:
@@ -116,7 +129,7 @@ def call_gemini(api_key, messages):
     Send the conversation to the Gemini API and return the assistant reply.
 
     Args:
-        api_key:  The student's Gemini API key.
+        api_key:  The Gemini API key.
         messages: Full conversation history including the latest user message
                   as the last entry.  Each entry has keys 'role' and 'content'.
 
@@ -151,7 +164,7 @@ def call_gemini(api_key, messages):
     except PermissionDenied:
         st.error(
             "Invalid or expired API key. "
-            "Please refresh the page and re-enter a valid Gemini API key."
+            "Please check the Gemini API key and try again."
         )
         return None
 
@@ -246,7 +259,7 @@ def main():
     init_session_state()
     render_sidebar()
 
-    # Gate: only render the chat interface once the API key is supplied.
+    # Gate: only render the chat interface once the API key is available.
     if not render_api_key_gate():
         st.stop()
 
